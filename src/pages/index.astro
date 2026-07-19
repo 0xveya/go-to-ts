@@ -1,0 +1,79 @@
+---
+const sampleGo = `
+type Something struct {
+	Erm string
+	ErmButInt int
+}
+`;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Go to TypeScript</title>
+  </head>
+  <body>
+    <main>
+      <textarea id="go-source" aria-label="Go source" spellcheck="false"
+        >{sampleGo}</textarea
+      >
+      <textarea
+        id="typescript-source"
+        aria-label="TypeScript output"
+        spellcheck="false"></textarea>
+    </main>
+
+    <script>
+      import { parseGo } from "../lib/go-parser";
+
+      const source = document.querySelector<HTMLTextAreaElement>("#go-source");
+
+      if (!source) {
+        throw new Error("Go source field is missing");
+      }
+      const goSource = source;
+
+      let run = 0;
+      async function update() {
+        const currentRun = ++run;
+        try {
+          const tree = await parseGo(goSource.value);
+          if (currentRun === run) {
+            console.log(tree);
+          }
+        } catch (error) {
+          if (currentRun === run) {
+            console.error(error);
+          }
+        }
+      }
+
+      goSource.addEventListener("input", update);
+      void update();
+    </script>
+
+    <style>
+      html,
+      body,
+      main {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+      }
+
+      main {
+        display: flex;
+      }
+
+      textarea {
+        flex: 1;
+        box-sizing: border-box;
+        padding: 1rem;
+      }
+    </style>
+  </body>
+</html>

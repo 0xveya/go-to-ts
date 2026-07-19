@@ -1,0 +1,27 @@
+{
+  "name": "go-to-typescript",
+  "type": "module",
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "check": "astro check",
+    "preview": "astro preview",
+    "astro": "astro",
+    "copy:wasm": "mkdir -p public && cp node_modules/web-tree-sitter/web-tree-sitter.wasm public/web-tree-sitter.wasm && cp node_modules/tree-sitter-go/tree-sitter-go.wasm public/tree-sitter-go.wasm",
+    "postinstall": "bun run copy:wasm"
+  },
+  "dependencies": {
+    "astro": "^7.1.1",
+    "tree-sitter-go": "^0.25.0",
+    "web-tree-sitter": "^0.26.11"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.9",
+    "tree-sitter-cli": "^0.26.11",
+    "typescript": "^5.9.0"
+  }
+}
