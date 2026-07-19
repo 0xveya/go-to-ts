@@ -1,79 +1,211 @@
----
-const sampleGo = `
-type Something struct {
-	Erm string
-	ErmButInt int
-}
-`;
----
-
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
     <title>Go to TypeScript</title>
   </head>
+
   <body>
     <main>
-      <textarea id="go-source" aria-label="Go source" spellcheck="false"
-        >{sampleGo}</textarea
-      >
-      <textarea
-        id="typescript-source"
-        aria-label="TypeScript output"
-        spellcheck="false"></textarea>
+      <section>
+        <div class="label">Go</div>
+        <div id="go-editor"></div>
+      </section>
+
+      <section>
+        <div class="label">TypeScript</div>
+        <div id="typescript-editor"></div>
+      </section>
     </main>
 
     <script>
+      import { EditorState } from "@codemirror/state";
+      import {
+        EditorView,
+        drawSelection,
+        highlightActiveLine,
+        highlightSpecialChars,
+        keymap,
+        lineNumbers,
+      } from "@codemirror/view";
+      import {
+        defaultHighlightStyle,
+        syntaxHighlighting,
+      } from "@codemirror/language";
+      import { indentWithTab } from "@codemirror/commands";
+      import { go } from "@codemirror/lang-go";
+      import { javascript } from "@codemirror/lang-javascript";
+
       import { parseGo } from "../lib/go-parser";
 
-      const source = document.querySelector<HTMLTextAreaElement>("#go-source");
+      const sampleGo = `type Something struct {
+	Erm string
+	ErmButInt int
+}`;
 
-      if (!source) {
-        throw new Error("Go source field is missing");
+      const goContainer = document.querySelector<HTMLElement>("#go-editor");
+      const typescriptContainer =
+        document.querySelector<HTMLElement>("#typescript-editor");
+
+      if (!goContainer || !typescriptContainer) {
+        throw new Error("Editor containers are missing");
       }
-      const goSource = source;
+
+      const commonExtensions = [
+        lineNumbers(),
+        highlightSpecialChars(),
+        drawSelection(),
+        highlightActiveLine(),
+        syntaxHighlighting(defaultHighlightStyle),
+        keymap.of([indentWithTab]),
+        EditorView.lineWrapping,
+      ];
+
+      const typescriptEditor = new EditorView({
+        parent: typescriptContainer,
+        state: EditorState.create({
+          doc: "",
+          extensions: [
+            ...commonExtensions,
+            javascript({
+              typescript: true,
+            }),
+            EditorState.readOnly.of(true),
+            EditorView.editable.of(false),
+          ],
+        }),
+      });
 
       let run = 0;
-      async function update() {
+
+      async function update(goSource: string) {
         const currentRun = ++run;
+
         try {
-          const tree = await parseGo(goSource.value);
-          if (currentRun === run) {
-            console.log(tree);
+          await parseGo(goSource);
+
+          if (currentRun !== run) {
+            return;
           }
+
+          typescriptEditor.dispatch({
+            changes: {
+              from: 0,
+              to: typescriptEditor.state.doc.length,
+              insert: "",
+            },
+          });
         } catch (error) {
-          if (currentRun === run) {
-            console.error(error);
+          if (currentRun !== run) {
+            return;
           }
+
+          const message =
+            error instanceof Error ? error.message : "Unknown parsing error";
+
+          typescriptEditor.dispatch({
+            changes: {
+              from: 0,
+              to: typescriptEditor.state.doc.length,
+              insert: `// Error\n// ${message}`,
+            },
+          });
         }
       }
 
-      goSource.addEventListener("input", update);
-      void update();
+      const goEditor = new EditorView({
+        parent: goContainer,
+        state: EditorState.create({
+          doc: sampleGo,
+          extensions: [
+            ...commonExtensions,
+            go(),
+            EditorView.updateListener.of((updateEvent) => {
+              if (updateEvent.docChanged) {
+                void update(updateEvent.state.doc.toString());
+              }
+            }),
+          ],
+        }),
+      });
+
+      void update(goEditor.state.doc.toString());
     </script>
-
-    <style>
-      html,
-      body,
-      main {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-      }
-
-      main {
-        display: flex;
-      }
-
-      textarea {
-        flex: 1;
-        box-sizing: border-box;
-        padding: 1rem;
-      }
-    </style>
   </body>
 </html>
+
+<style>
+  :global(*) {
+    box-sizing: border-box;
+  }
+
+  :global(html),
+  :global(body) {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+  }
+
+  :global(body) {
+    font-family: system-ui, sans-serif;
+  }
+
+  main {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    height: 100%;
+  }
+
+  section {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    min-width: 0;
+    min-height: 0;
+    border-right: 1px solid #ddd;
+  }
+
+  section:last-child {
+    border-right: 0;
+  }
+
+  .label {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #ddd;
+    font-weight: 600;
+  }
+
+  #go-editor,
+  #typescript-editor {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  :global(.cm-editor) {
+    height: 100%;
+  }
+
+  :global(.cm-scroller) {
+    overflow: auto;
+    font-family:
+      "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+
+  :global(.cm-content) {
+    padding: 1rem 0;
+  }
+
+  @media (max-width: 700px) {
+    main {
+      grid-template-columns: 1fr;
+      grid-template-rows: 1fr 1fr;
+    }
+
+    section {
+      border-right: 0;
+      border-bottom: 1px solid #ddd;
+    }
+  }
+</style>

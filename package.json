@@ -15,6 +15,12 @@
     "postinstall": "bun run copy:wasm"
   },
   "dependencies": {
+    "@codemirror/commands": "^6.10.4",
+    "@codemirror/lang-go": "^6.0.1",
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/state": "^6.7.1",
+    "@codemirror/view": "^6.43.6",
     "astro": "^7.1.1",
     "tree-sitter-go": "^0.25.0",
     "web-tree-sitter": "^0.26.11"
