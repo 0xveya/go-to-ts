@@ -1,173 +1,51 @@
-import type { Node, Tree } from "web-tree-sitter";
-
-const goTypeToTypeScript: Record<string, string> = {
-  string: "string",
-  bool: "boolean",
-
-  int: "number",
-  int8: "number",
-  int16: "number",
-  int32: "number",
-  int64: "number",
-
-  uint: "number",
-  uint8: "number",
-  uint16: "number",
-  uint32: "number",
-  uint64: "number",
-  uintptr: "number",
-
-  float32: "number",
-  float64: "number",
-
-  byte: "number",
-  rune: "number",
-
-  any: "unknown",
-};
-
-function walk(node: Node, callback: (node: Node) => void): void {
-  callback(node);
-
-  for (const child of node.namedChildren) {
-    walk(child, callback);
-  }
-}
-
-function findNodes(root: Node, type: string): Node[] {
-  const results: Node[] = [];
-
-  walk(root, (node) => {
-    if (node.type === type) {
-      results.push(node);
-    }
-  });
-
-  return results;
-}
-
-function convertGoType(node: Node): string {
-  const sourceType = node.text.trim();
-  const primitiveType = goTypeToTypeScript[sourceType];
-
-  if (primitiveType) {
-    return primitiveType;
-  }
-
-  switch (node.type) {
-    case "slice_type":
-    case "array_type": {
-      const elementType = node.namedChildren.at(-1);
-
-      if (!elementType) {
-        return "unknown[]";
-      }
-
-      return `${convertGoType(elementType)}[]`;
-    }
-
-    case "pointer_type": {
-      const pointedType = node.namedChildren.at(-1);
-
-      if (!pointedType) {
-        return "unknown";
-      }
-
-      return `${convertGoType(pointedType)} | null`;
-    }
-
-    case "map_type": {
-      const keyNode = node.namedChildren[0];
-      const valueNode = node.namedChildren[1];
-
-      if (!keyNode || !valueNode) {
-        return "Record<string, unknown>";
-      }
-
-      const keyType = convertGoType(keyNode);
-      const valueType = convertGoType(valueNode);
-
-      return `Record<${keyType}, ${valueType}>`;
-    }
-
-    case "interface_type":
-      return "unknown";
-
-    default:
-      // preserve references to named/custom Go types.
-      return sourceType;
-  }
-}
-
-function convertField(node: Node): string[] {
-  const fieldNames = node.namedChildren.filter(
-    (child) => child.type === "field_identifier",
-  );
-
-  const typeNode = node.namedChildren.find(
-    (child) => child.type !== "field_identifier",
-  );
-
-  if (!typeNode) {
-    return [];
-  }
-
-  const tsType = convertGoType(typeNode);
-
-  return fieldNames.map((field) => `  ${field.text}: ${tsType};`);
-}
-
-function convertStructType(nameNode: Node, structNode: Node): string {
-  const fieldNodes = structNode.namedChildren.filter(
-    (child) => child.type === "field_declaration_list",
-  );
-
-  const fields = fieldNodes
-    .flatMap((fieldList) => fieldList.namedChildren)
-    .filter((child) => child.type === "field_declaration")
-    .flatMap(convertField);
-
-  return [`export interface ${nameNode.text} {`, ...fields, "}"].join("\n");
-}
-
-function convertNamedType(nameNode: Node, typeNode: Node): string {
-  const tsType = convertGoType(typeNode);
-
-  return `export type ${nameNode.text} = ${tsType};`;
-}
-
-function convertTypeDeclaration(node: Node): string | null {
-  const nameNode = node.childForFieldName("name");
-  const typeNode = node.childForFieldName("type");
-
-  if (!nameNode || !typeNode) {
-    return null;
-  }
-
-  if (typeNode.type === "struct_type") {
-    return convertStructType(nameNode, typeNode);
-  }
-
-  return convertNamedType(nameNode, typeNode);
-}
+import type { Tree } from "web-tree-sitter";
+import {
+  convertStandaloneConst,
+  resolveConstBlock,
+  type ConstValue,
+} from "./to-ts/constants";
+import { convertResolvedEnums, getEnumTypeNames } from "./to-ts/enums";
+import { findNodes } from "./to-ts/tree";
+import { convertTypeDeclaration } from "./to-ts/types";
 
 export function toTs(tree: Tree): string {
   if (tree.rootNode.hasError) {
     return "// Go source contains a syntax error";
   }
 
+  const constBlocks = findNodes(tree.rootNode, "const_declaration").sort(
+    (left, right) => left.startIndex - right.startIndex,
+  );
   const typeDeclarations = [
     ...findNodes(tree.rootNode, "type_spec"),
     ...findNodes(tree.rootNode, "type_alias"),
   ].sort((left, right) => left.startIndex - right.startIndex);
 
-  const declarations = typeDeclarations
-    .map(convertTypeDeclaration)
+  const symbols = new Map<string, ConstValue>();
+  const resolvedConstants = constBlocks.flatMap((block) =>
+    resolveConstBlock(block, symbols),
+  );
+  const {
+    declarations: enumDeclarations,
+    enumNames,
+    enumConstants,
+  } = convertResolvedEnums(
+    resolvedConstants,
+    getEnumTypeNames(typeDeclarations),
+  );
+  const convertedTypes = typeDeclarations
+    .map((node) => convertTypeDeclaration(node, enumNames))
     .filter((value): value is string => value !== null);
+  const standaloneConstants = resolvedConstants
+    .filter((constant) => !enumConstants.has(constant))
+    .map(convertStandaloneConst);
+  const declarations = [
+    ...convertedTypes,
+    ...enumDeclarations,
+    ...standaloneConstants,
+  ];
 
-  if (declarations.length === 0) {
-    return "// No Go types found";
-  }
-
-  return declarations.join("\n\n");
+  return declarations.length > 0
+    ? declarations.join("\n\n")
+    : "// No supported Go declarations found";
 }
