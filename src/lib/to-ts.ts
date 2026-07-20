@@ -152,15 +152,6 @@ function walk(node: Node, callback: (node: Node) => void): void {
 }
 
 export function toTs(tree: Tree): string {
-  console.log("Walking nodes:");
-
-  walk(tree.rootNode, (node) => {
-    console.log({
-      type: node.type,
-      text: node.text,
-    });
-  });
-
   if (tree.rootNode.hasError) {
     return "// Go source contains a syntax error";
   }

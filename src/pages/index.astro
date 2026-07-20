@@ -102,12 +102,7 @@
               return;
             }
 
-            console.log(tree.rootNode.toString());
-
             const output = toTs(tree);
-
-            console.log("Generated TypeScript:");
-            console.log(output);
 
             setTypeScriptOutput(output);
           } finally {

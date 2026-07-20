@@ -1,5 +1,4 @@
-import { Language, Parser } from "web-tree-sitter";
-import { type Tree } from "web-tree-sitter";
+import { Language, type Node, Parser, type Tree } from "web-tree-sitter";
 
 let parserPromise: Promise<Parser> | undefined;
 
@@ -26,13 +25,43 @@ export function getGoParser(): Promise<Parser> {
   return parserPromise;
 }
 
+function findSyntaxError(node: Node): Node | undefined {
+  if (node.isError || node.isMissing) {
+    return node;
+  }
+
+  for (const child of node.children) {
+    const error = findSyntaxError(child);
+
+    if (error) {
+      return error;
+    }
+  }
+
+  return undefined;
+}
+
 export async function parseGo(source: string): Promise<Tree> {
   const parser = await getGoParser();
-
-  const tree = parser.parse(source);
+  // treat EOF as a line ending so the go parser doenst throw an err
+  // bc it needs it so it knows that the thing eneded
+  const parserSource = source.endsWith("\n") ? source : `${source}\n`;
+  const tree = parser.parse(parserSource);
 
   if (!tree) {
     throw new Error("Tree-sitter could not parse the Go source");
+  }
+
+  if (tree.rootNode.hasError) {
+    const errorNode = findSyntaxError(tree.rootNode);
+    const location = errorNode
+      ? ` at line ${errorNode.startPosition.row + 1}, column ${
+          errorNode.startPosition.column + 1
+        }`
+      : "";
+
+    tree.delete();
+    throw new Error(`Invalid Go syntax${location}`);
   }
 
   return tree;
