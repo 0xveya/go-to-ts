@@ -40,11 +40,26 @@
       import { parseGo } from "../lib/go-parser";
       import { toTs } from "../lib/to-ts";
 
-      const sampleGo = `type Something struct {
+      const sampleGo = `type urMum int
+type urMum2 = int
+
+type ServerState int
+
+const (
+    StateIdle ServerState = iota
+    StateConnected
+    StateError
+    StateRetrying
+)
+
+type Something struct {
 	Erm string
 	ErmButInt int
 	Enabled bool
 	Tags []string
+    UrMum urMum
+    UrMum2 urMum2
+    State ServerState
 }`;
 
       const goContainer = document.querySelector<HTMLElement>("#go-editor");

@@ -1,4 +1,4 @@
-import { type Tree, Node } from "web-tree-sitter";
+import type { Node, Tree } from "web-tree-sitter";
 
 const goTypeToTypeScript: Record<string, string> = {
   string: "string",
@@ -26,6 +26,14 @@ const goTypeToTypeScript: Record<string, string> = {
   any: "unknown",
 };
 
+function walk(node: Node, callback: (node: Node) => void): void {
+  callback(node);
+
+  for (const child of node.namedChildren) {
+    walk(child, callback);
+  }
+}
+
 function findNodes(root: Node, type: string): Node[] {
   const results: Node[] = [];
 
@@ -40,24 +48,14 @@ function findNodes(root: Node, type: string): Node[] {
 
 function convertGoType(node: Node): string {
   const sourceType = node.text.trim();
+  const primitiveType = goTypeToTypeScript[sourceType];
 
-  const primitive = goTypeToTypeScript[sourceType];
-
-  if (primitive) {
-    return primitive;
+  if (primitiveType) {
+    return primitiveType;
   }
 
   switch (node.type) {
-    case "slice_type": {
-      const elementType = node.namedChildren.at(-1);
-
-      if (!elementType) {
-        return "unknown[]";
-      }
-
-      return `${convertGoType(elementType)}[]`;
-    }
-
+    case "slice_type":
     case "array_type": {
       const elementType = node.namedChildren.at(-1);
 
@@ -96,7 +94,7 @@ function convertGoType(node: Node): string {
       return "unknown";
 
     default:
-      // custom Go type handle or sum
+      // preserve references to named/custom Go types.
       return sourceType;
   }
 }
@@ -119,36 +117,38 @@ function convertField(node: Node): string[] {
   return fieldNames.map((field) => `  ${field.text}: ${tsType};`);
 }
 
-function convertTypeSpec(node: Node): string | null {
-  const nameNode =
-    node.childForFieldName("name") ??
-    node.namedChildren.find((child) => child.type === "type_identifier");
+function convertStructType(nameNode: Node, structNode: Node): string {
+  const fieldNodes = structNode.namedChildren.filter(
+    (child) => child.type === "field_declaration_list",
+  );
 
-  const structNode =
-    node.childForFieldName("type") ??
-    node.namedChildren.find((child) => child.type === "struct_type");
-
-  if (!nameNode || !structNode) {
-    return null;
-  }
-
-  if (structNode.type !== "struct_type") {
-    return null;
-  }
-
-  const fieldNodes = findNodes(structNode, "field_declaration");
-
-  const fields = fieldNodes.flatMap(convertField);
+  const fields = fieldNodes
+    .flatMap((fieldList) => fieldList.namedChildren)
+    .filter((child) => child.type === "field_declaration")
+    .flatMap(convertField);
 
   return [`export interface ${nameNode.text} {`, ...fields, "}"].join("\n");
 }
 
-function walk(node: Node, callback: (node: Node) => void): void {
-  callback(node);
+function convertNamedType(nameNode: Node, typeNode: Node): string {
+  const tsType = convertGoType(typeNode);
 
-  for (const child of node.namedChildren) {
-    walk(child, callback);
+  return `export type ${nameNode.text} = ${tsType};`;
+}
+
+function convertTypeDeclaration(node: Node): string | null {
+  const nameNode = node.childForFieldName("name");
+  const typeNode = node.childForFieldName("type");
+
+  if (!nameNode || !typeNode) {
+    return null;
   }
+
+  if (typeNode.type === "struct_type") {
+    return convertStructType(nameNode, typeNode);
+  }
+
+  return convertNamedType(nameNode, typeNode);
 }
 
 export function toTs(tree: Tree): string {
@@ -156,14 +156,17 @@ export function toTs(tree: Tree): string {
     return "// Go source contains a syntax error";
   }
 
-  const typeSpecs = findNodes(tree.rootNode, "type_spec");
+  const typeDeclarations = [
+    ...findNodes(tree.rootNode, "type_spec"),
+    ...findNodes(tree.rootNode, "type_alias"),
+  ].sort((left, right) => left.startIndex - right.startIndex);
 
-  const declarations = typeSpecs
-    .map(convertTypeSpec)
+  const declarations = typeDeclarations
+    .map(convertTypeDeclaration)
     .filter((value): value is string => value !== null);
 
   if (declarations.length === 0) {
-    return "// No Go structs found";
+    return "// No Go types found";
   }
 
   return declarations.join("\n\n");
