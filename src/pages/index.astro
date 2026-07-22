@@ -33,7 +33,7 @@
         defaultHighlightStyle,
         syntaxHighlighting,
       } from "@codemirror/language";
-      import { indentWithTab } from "@codemirror/commands";
+      import { defaultKeymap, indentWithTab } from "@codemirror/commands";
       import { go } from "@codemirror/lang-go";
       import { javascript } from "@codemirror/lang-javascript";
 
@@ -142,7 +142,7 @@ type Response struct {
         drawSelection(),
         highlightActiveLine(),
         syntaxHighlighting(defaultHighlightStyle),
-        keymap.of([indentWithTab]),
+        keymap.of([...defaultKeymap, indentWithTab]),
         EditorView.lineWrapping,
       ];
 
@@ -154,7 +154,6 @@ type Response struct {
             ...commonExtensions,
             javascript({ typescript: true }),
             EditorState.readOnly.of(true),
-            EditorView.editable.of(false),
           ],
         }),
       });
