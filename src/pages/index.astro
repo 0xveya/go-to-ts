@@ -40,7 +40,17 @@
       import { parseGo } from "../lib/go-parser";
       import { toTs } from "../lib/to-ts";
 
-      const sampleGo = `type urMum int
+      const sampleGo = `package sample
+
+import (
+    "database/sql"
+    "encoding/json"
+    "net"
+    "net/url"
+    "time"
+)
+
+type urMum int
 type urMum2 = int
 
 type ServerState int
@@ -52,18 +62,70 @@ const (
     StateRetrying
 )
 
+const (
+    DefaultPort = 8080
+    AppName     = "example"
+    Enabled     = true
+)
+
+type Metadata map[string]json.RawMessage
+
 type Something struct {
-    Erm string \`json:"erm,omitempty"\`
-    Erm2 string \`json:"-"\`
-    Erm2 string \`json:"-"\`
-    Erm3 int    \`json:",omitempty"\`
-	ErmButInt int
-	Enabled bool
-	Tags []string
-    UrMum urMum
+    // Normal JSON field.
+    Erm string \`json:"erm"\`
+
+    // Renamed and optional.
+    OptionalName string \`json:"optional_name,omitempty"\`
+
+    // Omitted completely.
+    InternalValue string \`json:"-"\`
+
+    // Keep the Go field name, but make it optional.
+    Erm3 int \`json:",omitempty"\`
+
+    // Fields without struct tags.
+    ErmButInt int
+    Enabled   bool
+    Tags      []string
+
+    // Custom declared and aliased types.
+    UrMum  urMum
     UrMum2 urMum2
+
+    // Enum type.
     State ServerState
-}`;
+
+    // Arrays, slices, maps, and pointers.
+    Scores      []int
+    FixedValues [3]string
+    Labels      map[string]string
+    Metadata    Metadata
+    Description *string
+
+    // Standard-library types.
+    CreatedAt time.Time       \`json:"created_at"\`
+    Timeout   time.Duration   \`json:"timeout"\`
+    RawData   json.RawMessage \`json:"raw_data"\`
+    Address   net.IP          \`json:"address"\`
+    Website   url.URL         \`json:"website"\`
+
+    // Nullable SQL values.
+    NullableName   sql.NullString  \`json:"nullable_name"\`
+    NullableActive sql.NullBool    \`json:"nullable_active"\`
+    NullableCount  sql.NullInt64   \`json:"nullable_count"\`
+    NullableScore  sql.NullFloat64 \`json:"nullable_score"\`
+    NullableTime   sql.NullTime    \`json:"nullable_time"\`
+
+    // Pointer to a nullable SQL value.
+    OptionalNullableName *sql.NullString \`json:"optional_nullable_name,omitempty"\`
+}
+
+type Response struct {
+    Item  Something   \`json:"item"\`
+    Items []Something \`json:"items,omitempty"\`
+    Error string      \`json:"error,omitempty"\`
+}
+`;
 
       const goContainer = document.querySelector<HTMLElement>("#go-editor");
 
