@@ -3,16 +3,19 @@ import type { Node } from "web-tree-sitter";
 const goTypeToTypeScript: Record<string, string> = {
   string: "string",
   bool: "boolean",
+
   int: "number",
   int8: "number",
   int16: "number",
   int32: "number",
-  int64: "number",
+  int64: "string",
+
   uint: "number",
   uint8: "number",
   uint16: "number",
   uint32: "number",
-  uint64: "number",
+  uint64: "string",
+
   uintptr: "number",
   float32: "number",
   float64: "number",
@@ -20,7 +23,7 @@ const goTypeToTypeScript: Record<string, string> = {
   rune: "number",
   any: "unknown",
 
-  "time.Time": "Date",
+  "time.Time": "string",
   "time.Duration": "number",
   "json.RawMessage": "unknown",
   "net.IP": "string",
@@ -54,7 +57,7 @@ const nullTypeDefinitions: NullTypeDefinition[] = [
     goType: "sql.NullInt64",
     tsName: "NullInt64",
     valueField: "Int64",
-    valueType: "number",
+    valueType: "string",
     functionName: "nullInt64Value",
   },
   {
@@ -68,7 +71,7 @@ const nullTypeDefinitions: NullTypeDefinition[] = [
     goType: "sql.NullTime",
     tsName: "NullTime",
     valueField: "Time",
-    valueType: "Date",
+    valueType: "string",
     functionName: "nullTimeValue",
   },
 ];
@@ -121,4 +124,18 @@ export function convertGoType(node: Node): string {
     default:
       return sourceType;
   }
+}
+
+export function convertNullTypes(): string[] {
+  return nullTypeDefinitions.flatMap(
+    ({ tsName, valueField, valueType, functionName }) => [
+      `export interface ${tsName} {
+  ${valueField}: ${valueType};
+  Valid: boolean;
+}`,
+      `export function ${functionName}(value: ${tsName}): ${valueType} | null {
+  return value.Valid ? value.${valueField} : null;
+}`,
+    ],
+  );
 }
