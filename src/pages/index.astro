@@ -11,7 +11,12 @@ const base = import.meta.env.BASE_URL.endsWith("/")
     <meta name="generator" content={Astro.generator} />
     <title>Go to TypeScript</title>
     <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
-    <link rel="icon" type="image/x-icon" href={`${base}favicon.ico`} sizes="any" />
+    <link
+      rel="icon"
+      type="image/x-icon"
+      href={`${base}favicon.ico`}
+      sizes="any"
+    />
     <script is:inline>
       try {
         if (localStorage.getItem("go-to-ts-theme") === "dark") {
@@ -118,10 +123,7 @@ const base = import.meta.env.BASE_URL.endsWith("/")
         keymap,
         lineNumbers,
       } from "@codemirror/view";
-      import {
-        HighlightStyle,
-        syntaxHighlighting,
-      } from "@codemirror/language";
+      import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
       import { tags } from "@lezer/highlight";
       import { defaultKeymap, indentWithTab } from "@codemirror/commands";
       import { go } from "@codemirror/lang-go";
@@ -131,18 +133,37 @@ const base = import.meta.env.BASE_URL.endsWith("/")
       import { toTs } from "../lib/to-ts";
       const catppuccinHighlightStyle = HighlightStyle.define([
         { tag: [tags.keyword, tags.modifier], color: "var(--syntax-mauve)" },
-        { tag: [tags.string, tags.special(tags.string)], color: "var(--syntax-green)" },
-        { tag: [tags.number, tags.bool, tags.null], color: "var(--syntax-peach)" },
+        {
+          tag: [tags.string, tags.special(tags.string)],
+          color: "var(--syntax-green)",
+        },
+        {
+          tag: [tags.number, tags.bool, tags.null],
+          color: "var(--syntax-peach)",
+        },
         { tag: [tags.typeName, tags.className], color: "var(--syntax-yellow)" },
-        { tag: [tags.variableName, tags.propertyName], color: "var(--syntax-blue)" },
-        { tag: [tags.function(tags.variableName), tags.labelName], color: "var(--syntax-blue)" },
-        { tag: [tags.comment, tags.lineComment, tags.blockComment], color: "var(--syntax-overlay)" },
-        { tag: [tags.operator, tags.punctuation], color: "var(--syntax-subtext)" },
+        {
+          tag: [tags.variableName, tags.propertyName],
+          color: "var(--syntax-blue)",
+        },
+        {
+          tag: [tags.function(tags.variableName), tags.labelName],
+          color: "var(--syntax-blue)",
+        },
+        {
+          tag: [tags.comment, tags.lineComment, tags.blockComment],
+          color: "var(--syntax-overlay)",
+        },
+        {
+          tag: [tags.operator, tags.punctuation],
+          color: "var(--syntax-subtext)",
+        },
       ]);
       const sunSvg = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"> <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" /> </svg>`;
       const moonSvg = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"> <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" /> </svg>`;
       const button = document.querySelector<HTMLButtonElement>("#theme-toggle");
-      const copyButton = document.querySelector<HTMLButtonElement>("#copy-button");
+      const copyButton =
+        document.querySelector<HTMLButtonElement>("#copy-button");
 
       const icon = document.querySelector<HTMLElement>("#theme-icon");
 
@@ -186,8 +207,8 @@ import (
     "time"
 )
 
-type urMum int
-type urMum2 = int
+type someAlias int
+type someOtherAlias string
 
 type ServerState int
 
@@ -225,8 +246,8 @@ type Something struct {
     Tags      []string
 
     // Custom declared and aliased types.
-    UrMum  urMum
-    UrMum2 urMum2
+    something someAlias
+    somethingElse someOtherAlias
 
     // Enum type.
     State ServerState
@@ -353,7 +374,9 @@ type Response struct {
       });
 
       copyButton.addEventListener("click", async () => {
-        await navigator.clipboard.writeText(typescriptEditor.state.doc.toString());
+        await navigator.clipboard.writeText(
+          typescriptEditor.state.doc.toString(),
+        );
 
         copyButton.ariaLabel = "Copied TypeScript";
         copyButton.title = "Copied TypeScript";
