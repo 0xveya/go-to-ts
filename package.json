@@ -9,6 +9,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "check": "astro check",
+    "lint": "astro check",
     "preview": "astro preview",
     "astro": "astro",
     "copy:wasm": "mkdir -p public && cp node_modules/web-tree-sitter/web-tree-sitter.wasm public/web-tree-sitter.wasm && cp node_modules/tree-sitter-go/tree-sitter-go.wasm public/tree-sitter-go.wasm",
