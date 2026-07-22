@@ -17,8 +17,3 @@ bun run dev
 bun run lint
 bun run build
 ```
-
-## Todo
-
-- add stdlib types like time etc
-= struct tags with omit empty should be name?
