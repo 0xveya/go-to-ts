@@ -5,16 +5,62 @@ function convertField(node: Node): string[] {
   const fieldNames = node.namedChildren.filter(
     (child) => child.type === "field_identifier",
   );
+
   const typeNode = node.namedChildren.find(
-    (child) => child.type !== "field_identifier",
+    (child) =>
+      child.type !== "field_identifier" && child.type !== "raw_string_literal",
   );
 
   if (!typeNode) {
     return [];
   }
 
+  const jsonTag = getStructTags(node).get("json");
   const tsType = convertGoType(typeNode);
-  return fieldNames.map((field) => `  ${field.text}: ${tsType};`);
+
+  return fieldNames.flatMap((field) => {
+    if (jsonTag?.ignored) {
+      return [];
+    }
+
+    const fieldName = jsonTag?.name || field.text;
+    const optional = jsonTag?.options.has("omitempty") ? "?" : "";
+
+    return [`  ${fieldName}${optional}: ${tsType};`];
+  });
+}
+
+interface StructTag {
+  name: string;
+  options: Set<string>;
+  ignored: boolean;
+}
+
+type StructTags = Map<string, StructTag>;
+
+function parseStructTags(tag: string): StructTags {
+  const tags: StructTags = new Map();
+  const text = tag.replace(/^`|`$/g, "");
+
+  for (const [, key, value] of text.matchAll(/(\w+):"([^"]*)"/g)) {
+    const [name, ...options] = value.split(",");
+
+    tags.set(key, {
+      name,
+      options: new Set(options),
+      ignored: name === "-",
+    });
+  }
+
+  return tags;
+}
+
+function getStructTags(node: Node): StructTags {
+  const tagNode = node.namedChildren.find(
+    (child) => child.type === "raw_string_literal",
+  );
+
+  return tagNode ? parseStructTags(tagNode.text) : new Map();
 }
 
 function convertStructType(nameNode: Node, structNode: Node): string {

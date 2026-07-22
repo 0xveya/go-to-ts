@@ -53,7 +53,10 @@ const (
 )
 
 type Something struct {
-	Erm string
+    Erm string \`json:"erm,omitempty"\`
+    Erm2 string \`json:"-"\`
+    Erm2 string \`json:"-"\`
+    Erm3 int    \`json:",omitempty"\`
 	ErmButInt int
 	Enabled bool
 	Tags []string
